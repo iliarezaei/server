@@ -27,22 +27,23 @@ def register_user():
 def send_message():
     """ارسال پیام از طرف فرستنده به گیرنده بر اساس کد یونیک"""
     data = request.json
-    unique_code = data.get('unique_code')
+    sender_code = data.get('unique_code')
+    receiver_code = data.get('receiver_code')
     title = data.get('title')
     body = data.get('body')
 
-    if not unique_code or not title or not body:
-        return jsonify({"status": "error", "message": "کد یونیک، عنوان و پیام لازم است"}), 400
+    if not sender_code or not receiver_code or not title or not body:
+        return jsonify({"status": "error", "message": "کد فرستنده، کد گیرنده، عنوان و پیام لازم است"}), 400
 
-    # پیدا کردن نام کاربری مربوط به کد یونیک
-    username = user_codes.get(unique_code)
-    if not username:
-        return jsonify({"status": "error", "message": "کد یونیک نامعتبر است"}), 400
+    # پیدا کردن نام کاربری گیرنده بر اساس کد یونیک
+    receiver_username = user_codes.get(receiver_code)
+    if not receiver_username:
+        return jsonify({"status": "error", "message": "کد گیرنده نامعتبر است"}), 400
 
     # ذخیره پیام برای گیرنده
-    if username not in messages:
-        messages[username] = []
-    messages[username].append({"title": title, "body": body})
+    if receiver_username not in messages:
+        messages[receiver_username] = []
+    messages[receiver_username].append({"title": title, "body": body})
 
     return jsonify({"status": "success", "message": "پیام با موفقیت ارسال شد"}), 200
 
