@@ -16,6 +16,9 @@ def register_user():
     if not username or not unique_code:
         return jsonify({"status": "error", "message": "نام کاربری و کد یونیک لازم است"}), 400
 
+    if unique_code in user_codes:
+        return jsonify({"status": "error", "message": "کد یونیک قبلاً ثبت شده است"}), 400
+
     user_codes[unique_code] = username
     return jsonify({"status": "success", "message": "کاربر ثبت شد"}), 200
 
@@ -48,7 +51,20 @@ def send_message():
 def get_message(username):
     """دریافت پیام‌ها برای یک کاربر خاص"""
     user_messages = messages.get(username, [])
-    return jsonify(user_messages), 200
+    if user_messages:
+        return jsonify(user_messages), 200
+    else:
+        return jsonify({"status": "error", "message": "پیامی برای این کاربر موجود نیست"}), 404
+
+
+@app.route('/delete_message/<username>', methods=['DELETE'])
+def delete_message(username):
+    """حذف تمام پیام‌ها برای یک کاربر خاص"""
+    if username in messages:
+        del messages[username]
+        return jsonify({"status": "success", "message": "تمام پیام‌ها حذف شدند"}), 200
+    else:
+        return jsonify({"status": "error", "message": "پیام‌ها برای این کاربر یافت نشد"}), 404
 
 
 if __name__ == '__main__':
