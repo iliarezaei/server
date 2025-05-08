@@ -1,77 +1,55 @@
-import tkinter as tk
-import json
-import os
-import requests
+from flask import Flask, request, jsonify
 
-SERVER_URL = "https://your-render-url.onrender.com"  # ← آدرس سرور Flask
-CONFIG_FILE = "config.json"
-MESSAGES_FILE = "messages.json"
+app = Flask(__name__)
 
-def load_config():
-    """ بارگذاری تنظیمات از فایل یا ثبت کاربر جدید. """
-    if os.path.exists(CONFIG_FILE):
-        with open(CONFIG_FILE, "r") as f:
-            return json.load(f)
-    else:
-        name = input("نام کاربر را وارد کنید: ")
-        response = requests.post(SERVER_URL + "/register_sender", json={"name": name})
-        
-        if response.status_code == 200:
-            data = response.json()
-            with open(CONFIG_FILE, "w") as f:
-                json.dump(data, f, indent=2)
-            return data
-        else:
-            print("خطا در ثبت نام کاربر!")
-            return None
+# ایجاد دیکشنری برای نگهداری کدهای یونیک و کاربران مربوطه
+user_codes = {}  # {'unique_code': 'username'}
+messages = {}  # {'username': [{"title": "title", "body": "body"}]}
 
-def send_message(message):
-    """ ارسال پیام به سرور و نمایش وضعیت ارسال. """
-    sender_code = config.get("sender_code")
-    if not sender_code:
-        status_label.config(text="❌ خطا: کد فرستنده موجود نیست.")
-        return
+@app.route('/register', methods=['POST'])
+def register_user():
+    """ثبت کاربر و کد یونیک مربوطه"""
+    data = request.json
+    username = data.get('username')
+    unique_code = data.get('unique_code')
 
-    payload = {
-        "sender_code": sender_code,
-        "message": message
-    }
+    if not username or not unique_code:
+        return jsonify({"status": "error", "message": "نام کاربری و کد یونیک لازم است"}), 400
 
-    try:
-        r = requests.post(SERVER_URL + "/send_message", json=payload)
-        
-        if r.status_code == 200:
-            status_label.config(text=f"✅ ارسال شد: {message}")
-        else:
-            status_label.config(text=f"❌ خطا در ارسال: {r.text}")
-    except Exception as e:
-        status_label.config(text=f"❌ خطا در ارسال: {str(e)}")
+    user_codes[unique_code] = username
+    return jsonify({"status": "success", "message": "کاربر ثبت شد"}), 200
 
-# بارگذاری تنظیمات
-config = load_config()
 
-if config is None:
-    exit(1)  # اگر تنظیمات بارگذاری نشد، برنامه را تمام کن
+@app.route('/send_message', methods=['POST'])
+def send_message():
+    """ارسال پیام از طرف فرستنده به گیرنده بر اساس کد یونیک"""
+    data = request.json
+    unique_code = data.get('unique_code')
+    title = data.get('title')
+    body = data.get('body')
 
-# GUI
-root = tk.Tk()
-root.title("ارسال هشدار")
+    if not unique_code or not title or not body:
+        return jsonify({"status": "error", "message": "کد یونیک، عنوان و پیام لازم است"}), 400
 
-frame = tk.Frame(root)
-frame.pack(padx=20, pady=20)
+    # پیدا کردن نام کاربری مربوط به کد یونیک
+    username = user_codes.get(unique_code)
+    if not username:
+        return jsonify({"status": "error", "message": "کد یونیک نامعتبر است"}), 400
 
-# بارگذاری پیام‌ها
-if os.path.exists(MESSAGES_FILE):
-    with open(MESSAGES_FILE, "r") as f:
-        messages = json.load(f)
-else:
-    messages = ["هشدار ۱", "هشدار ۲", "هشدار ۳"]
+    # ذخیره پیام برای گیرنده
+    if username not in messages:
+        messages[username] = []
+    messages[username].append({"title": title, "body": body})
 
-for msg in messages:
-    btn = tk.Button(frame, text=msg, width=30, command=lambda m=msg: send_message(m))
-    btn.pack(pady=5)
+    return jsonify({"status": "success", "message": "پیام با موفقیت ارسال شد"}), 200
 
-status_label = tk.Label(root, text="")
-status_label.pack(pady=10)
 
-root.mainloop()
+@app.route('/get_message/<username>', methods=['GET'])
+def get_message(username):
+    """دریافت پیام‌ها برای یک کاربر خاص"""
+    user_messages = messages.get(username, [])
+    return jsonify(user_messages), 200
+
+
+if __name__ == '__main__':
+    app.run(debug=True, host='0.0.0.0', port=5000)
