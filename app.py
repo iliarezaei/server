@@ -4,36 +4,54 @@ import os
 import requests
 
 SERVER_URL = "https://your-render-url.onrender.com"  # ← آدرس سرور Flask
-
 CONFIG_FILE = "config.json"
 MESSAGES_FILE = "messages.json"
 
 def load_config():
+    """ بارگذاری تنظیمات از فایل یا ثبت کاربر جدید. """
     if os.path.exists(CONFIG_FILE):
         with open(CONFIG_FILE, "r") as f:
             return json.load(f)
     else:
         name = input("نام کاربر را وارد کنید: ")
         response = requests.post(SERVER_URL + "/register_sender", json={"name": name})
-        data = response.json()
-        with open(CONFIG_FILE, "w") as f:
-            json.dump(data, f)
-        return data
+        
+        if response.status_code == 200:
+            data = response.json()
+            with open(CONFIG_FILE, "w") as f:
+                json.dump(data, f, indent=2)
+            return data
+        else:
+            print("خطا در ثبت نام کاربر!")
+            return None
 
 def send_message(message):
-    sender_code = config["sender_code"]
+    """ ارسال پیام به سرور و نمایش وضعیت ارسال. """
+    sender_code = config.get("sender_code")
+    if not sender_code:
+        status_label.config(text="❌ خطا: کد فرستنده موجود نیست.")
+        return
+
     payload = {
         "sender_code": sender_code,
         "message": message
     }
+
     try:
         r = requests.post(SERVER_URL + "/send_message", json=payload)
-        status_label.config(text=f"✅ ارسال شد: {message}")
+        
+        if r.status_code == 200:
+            status_label.config(text=f"✅ ارسال شد: {message}")
+        else:
+            status_label.config(text=f"❌ خطا در ارسال: {r.text}")
     except Exception as e:
-        status_label.config(text=f"❌ خطا در ارسال")
+        status_label.config(text=f"❌ خطا در ارسال: {str(e)}")
 
-# بارگذاری
+# بارگذاری تنظیمات
 config = load_config()
+
+if config is None:
+    exit(1)  # اگر تنظیمات بارگذاری نشد، برنامه را تمام کن
 
 # GUI
 root = tk.Tk()
