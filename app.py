@@ -5,6 +5,7 @@ import threading
 import time
 
 app = Flask(__name__)
+CORS(app)
 swagger = Swagger(app)
 
 user_codes = {}  # {'unique_code': {'username': '...', 'receiver_code': '...'}}
