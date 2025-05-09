@@ -3,6 +3,8 @@ from flasgger import Swagger
 from datetime import datetime, timedelta
 import threading
 import time
+from flask_cors import CORS
+
 
 app = Flask(__name__)
 CORS(app)
